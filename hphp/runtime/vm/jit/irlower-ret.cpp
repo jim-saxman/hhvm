@@ -95,7 +95,7 @@ void prepare_return_regs(Vout& v, SSATmp* retVal, Vloc retLoc,
     auto const extended = v.makeReg();
     auto const result = v.makeReg();
 
-    v << movzbq{type, extended};
+    v << andqi{0xFF, type, extended, v.makeReg()};
     v << orq{extended, v.cns(mask()), result, v.makeReg()};
     return result;
   }();
