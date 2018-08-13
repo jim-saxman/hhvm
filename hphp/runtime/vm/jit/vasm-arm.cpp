@@ -833,10 +833,10 @@ void Vgen::emit(const contenter& i) {
 void Vgen::emit(const calltc& i) {
   vixl::Label stub;
 
-  // Preserve the LR (exittc) on the stack, pushing twice for SP alignment.
+  // Preserve the LR (exittc) on the stack, pushing xzr for SP alignment.
   recordAddressImmediate();
   a->Mov(rAsm, i.exittc);
-  a->Stp(rAsm, rAsm, MemOperand(sp, -16, PreIndex));
+  a->Stp(xzr, rAsm, MemOperand(sp, -16, PreIndex));
 
   // Branch and link to nowhere to balance the LR stack.
   recordAddressImmediate();
@@ -851,7 +851,7 @@ void Vgen::emit(const calltc& i) {
 void Vgen::emit(const leavetc& /*i*/) {
   // The LR was preserved on the stack by calltc above. Pop it while preserving
   // SP alignment and return.
-  a->Ldp(rAsm, X(rlr()), MemOperand(sp, 16, PostIndex));
+  a->Ldp(xzr, X(rlr()), MemOperand(sp, 16, PostIndex));
   a->Ret();
 }
 
@@ -1678,10 +1678,15 @@ void lower(const VLS& e, jmpm& i, Vlabel b, size_t z) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-void lower(const VLS& e, stublogue& /*i*/, Vlabel b, size_t z) {
+void lower(const VLS& e, stublogue& i, Vlabel b, size_t z) {
   lower_impl(e.unit, b, z, [&] (Vout& v) {
-    // Push both the LR and FP regardless of i.saveframe to align SP.
-    v << pushp{rlr(), rvmfp()};
+    if (i.saveframe) {
+      // Push both the LR and FP to align SP.
+      v << pushp{rlr(), rvmfp()};
+    } else {
+      // Push both the LR and xzr to align SP.
+      v << pushp{rlr(), PhysReg(xzr)};
+    }
   });
 }
 
@@ -1691,7 +1696,7 @@ void lower(const VLS& e, stubret& i, Vlabel b, size_t z) {
     if (i.saveframe) {
       v << popp{rvmfp(), rlr()};
     } else {
-      v << popp{PhysReg(rAsm), rlr()};
+      v << popp{PhysReg(xzr), rlr()};
     }
 
     v << ret{i.args};
@@ -1701,7 +1706,7 @@ void lower(const VLS& e, stubret& i, Vlabel b, size_t z) {
 void lower(const VLS& e, tailcallstub& i, Vlabel b, size_t z) {
   lower_impl(e.unit, b, z, [&] (Vout& v) {
     // Restore LR from native stack and adjust SP.
-    v << popp{PhysReg(rAsm), rlr()};
+    v << popp{PhysReg(vixl::xzr), rlr()};
 
     // Then directly jump to the target.
     v << jmpi{i.target, i.args};
