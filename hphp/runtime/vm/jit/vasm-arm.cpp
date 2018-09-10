@@ -1706,7 +1706,7 @@ void lower(const VLS& e, stubret& i, Vlabel b, size_t z) {
 void lower(const VLS& e, tailcallstub& i, Vlabel b, size_t z) {
   lower_impl(e.unit, b, z, [&] (Vout& v) {
     // Restore LR from native stack and adjust SP.
-    v << popp{PhysReg(vixl::xzr), rlr()};
+    v << popp{PhysReg(xzr), rlr()};
 
     // Then directly jump to the target.
     v << jmpi{i.target, i.args};
